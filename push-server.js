@@ -10,6 +10,13 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Simple request logger for debugging
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} ${req.method} ${req.path}`);
+  if (req.method !== 'GET') console.log('Body:', JSON.stringify(req.body).slice(0,200));
+  next();
+});
+
 let vapidKeys;
 const VAPID_FILE = './vapid.json';
 if (fs.existsSync(VAPID_FILE)) {
@@ -34,11 +41,13 @@ function saveSubs(subs) {
 }
 
 app.get('/vapidPublicKey', (req, res) => {
+  console.log('GET /vapidPublicKey -> returning publicKey');
   res.json({ publicKey: vapidKeys.publicKey });
 });
 
 app.post('/subscribe', (req, res) => {
   const sub = req.body.subscription;
+  console.log('POST /subscribe payload length', req.body ? JSON.stringify(req.body).length : 0);
   if (!sub) return res.status(400).json({ error: 'subscription missing' });
   const subs = loadSubs();
   subs.push(sub);
@@ -48,6 +57,7 @@ app.post('/subscribe', (req, res) => {
 
 app.post('/unsubscribe', (req, res) => {
   const sub = req.body.subscription;
+  console.log('POST /unsubscribe payload length', req.body ? JSON.stringify(req.body).length : 0);
   if (!sub) return res.status(400).json({ error: 'subscription missing' });
   let subs = loadSubs();
   subs = subs.filter(s => JSON.stringify(s) !== JSON.stringify(sub));
@@ -56,6 +66,7 @@ app.post('/unsubscribe', (req, res) => {
 });
 
 app.post('/send', async (req, res) => {
+  console.log('POST /send payload length', req.body ? JSON.stringify(req.body).length : 0);
   const payload = req.body.payload || { title: 'Dog bark', body: 'A dog bark was detected' };
   const subs = loadSubs();
   const results = [];

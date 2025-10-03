@@ -139,6 +139,14 @@
             <button id="push-send" class="button" style="background:#00A86B;border-color:#007A50">Send test push (server)</button>
             <span id="push-status" style="margin-left:8px">-</span>
         </div>
+        <div style="margin-top:.5rem;">
+            <button id="push-check" class="button" style="padding:.4rem .6rem;font-size:.85rem">Check push server</button>
+            <small style="margin-left:.5rem;color:#666">Verifies the VAPID endpoint and prints the response in the debug log</small>
+        </div>
+        <div style="margin-top:.6rem;display:flex;gap:.5rem;align-items:center;">
+            <label style="display:inline-flex;align-items:center;gap:.4rem"><input id="push-autosend" type="checkbox"> Auto-send detections (debounced)</label>
+            <small style="color:#666;margin-left:6px">When enabled, detections will be forwarded to the push server (one request per interval)</small>
+        </div>
     </div>
     <script src="edge-impulse-standalone.js"></script>
     <script src="run-impulse.js"></script>
