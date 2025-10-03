@@ -290,21 +290,39 @@ async function processAudioChunk(chunk) {
 window.addEventListener('DOMContentLoaded', async () => {
     // Try to register the service worker early so reg.showNotification can be used
     if ('serviceWorker' in navigator) {
-        try {
-            // Register relative to the current location so project pages (github.io/<repo>/)
-            // correctly resolve to the deployed sw.js path instead of '/sw.js' which maps
-            // to the user/site root and often 404s for project pages.
-            const swUrl = new URL('sw.js', location.href).href;
-            const reg = await navigator.serviceWorker.register(swUrl);
-            dbgLog('Service worker registered at ' + (reg.scope || swUrl));
-        } catch (ex) {
-            // Provide clearer message on common 404 error
-            if (ex && ex.message && ex.message.indexOf('404') !== -1) {
-                dbgLog('Service worker registration failed: 404 when fetching sw.js (check that sw.js is deployed at the same path as this page)');
-            } else {
-                dbgLog('Service worker registration failed: ' + ex);
+        // Compute a base-relative sw url (so it works for project pages), then
+        // try a fallback to /<repo>/sw.js if the first attempt 404s.
+        const repoName = 'dog-bark-detector-webapp';
+        const tryRegister = async (swUrl) => {
+            try {
+                const reg = await navigator.serviceWorker.register(swUrl);
+                dbgLog('Service worker registered at ' + (reg.scope || swUrl));
+                return true;
+            } catch (ex) {
+                // Return the exception so caller can inspect it
+                return ex;
             }
-            console.warn('SW register failed', ex);
+        };
+
+        // Build sw URL relative to current page path
+        const pathBase = location.pathname.endsWith('/') ? location.pathname : location.pathname.substring(0, location.pathname.lastIndexOf('/') + 1);
+        const swRelative = location.origin + pathBase + 'sw.js';
+        let res = await tryRegister(swRelative);
+        if (res !== true) {
+            // If 404, try repository-rooted path as fallback (useful for project pages hosted under /repo/)
+            const message = (res && res.message) ? res.message : String(res);
+            if (message.indexOf('404') !== -1 || message.indexOf('Not Found') !== -1) {
+                const fallback = location.origin + '/' + repoName + '/sw.js';
+                dbgLog('First SW register 404, trying fallback ' + fallback);
+                const res2 = await tryRegister(fallback);
+                if (res2 !== true) {
+                    dbgLog('Service worker registration failed (fallback): ' + (res2 && res2.message ? res2.message : res2));
+                    console.warn('SW register failed (fallback)', res2);
+                }
+            } else {
+                dbgLog('Service worker registration failed: ' + message);
+                console.warn('SW register failed', res);
+            }
         }
         // Refresh the displayed SW status
         await updateDebugSWStatus();
