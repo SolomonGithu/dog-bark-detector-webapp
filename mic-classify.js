@@ -64,6 +64,23 @@ async function startMicrophoneCapture() {
     source.connect(processor);
     processor.connect(audioContext.destination);
 
+    // Request notification permission on a user gesture (start button)
+    if (window.Notification && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+        try {
+            await Notification.requestPermission();
+        } catch (ex) {
+            console.warn('Notification permission request failed', ex);
+        }
+    }
+
+    // Try to register a service worker if available. This helps for showing
+    // notifications when the page is in the background (or for future push support).
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js')
+            .then(() => console.log('Service worker registered'))
+            .catch((e) => console.warn('Service worker registration failed', e));
+    }
+
     captureInterval = setInterval(updateDogBarkTimer, 1000);
 
     document.getElementById('start-capture').disabled = true;
@@ -102,20 +119,39 @@ function processAudioChunk(chunk) {
             lastDogBarkTime = Date.now();
             updateLastDogBark();
             console.log('Dog bark notification triggered!');
-            // Show popup notification
-            if (window.Notification && Notification.permission === 'granted') {
-                new Notification('Dog bark detected!', { body: `Confidence: ${topResult.value.toFixed(2)}` });
-            } else if (window.Notification && Notification.permission !== 'denied') {
-                Notification.requestPermission().then(permission => {
-                    if (permission === 'granted') {
-                        new Notification('Dog bark detected!', { body: `Confidence: ${topResult.value.toFixed(2)}` });
+            // Show popup notification. Prefer using the service worker registration
+            // showNotification method where available so the notification can show
+            // even if the page is backgrounded.
+            (async () => {
+                const body = `Confidence: ${topResult.value.toFixed(2)}`;
+                try {
+                    if (window.Notification && Notification.permission === 'granted') {
+                        if (navigator.serviceWorker) {
+                            const reg = await navigator.serviceWorker.getRegistration();
+                            if (reg && reg.showNotification) {
+                                reg.showNotification('Dog bark detected!', { body, tag: 'dog-bark' });
+                                return;
+                            }
+                        }
+                        // Fallback to the simple constructor
+                        new Notification('Dog bark detected!', { body });
+                    } else if (window.Notification && Notification.permission !== 'denied') {
+                        // In practice we already requested permission on start, but
+                        // still handle this case defensively.
+                        const permission = await Notification.requestPermission();
+                        if (permission === 'granted') {
+                            new Notification('Dog bark detected!', { body });
+                        } else {
+                            alert(`Dog bark detected! ${body}`);
+                        }
                     } else {
-                        alert(`Dog bark detected! Confidence: ${topResult.value.toFixed(2)}`);
+                        alert(`Dog bark detected! ${body}`);
                     }
-                });
-            } else {
-                alert(`Dog bark detected! Confidence: ${topResult.value.toFixed(2)}`);
-            }
+                } catch (ex) {
+                    console.warn('Notification error', ex);
+                    alert(`Dog bark detected! ${body}`);
+                }
+            })();
         }
     } catch (ex) {
         updateClassificationResult('Error');
