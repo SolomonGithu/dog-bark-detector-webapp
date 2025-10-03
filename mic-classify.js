@@ -291,10 +291,19 @@ window.addEventListener('DOMContentLoaded', async () => {
     // Try to register the service worker early so reg.showNotification can be used
     if ('serviceWorker' in navigator) {
         try {
-            const reg = await navigator.serviceWorker.register('/sw.js');
-            dbgLog('Service worker registered at ' + (reg.scope || '/'));
+            // Register relative to the current location so project pages (github.io/<repo>/)
+            // correctly resolve to the deployed sw.js path instead of '/sw.js' which maps
+            // to the user/site root and often 404s for project pages.
+            const swUrl = new URL('sw.js', location.href).href;
+            const reg = await navigator.serviceWorker.register(swUrl);
+            dbgLog('Service worker registered at ' + (reg.scope || swUrl));
         } catch (ex) {
-            dbgLog('Service worker registration failed: ' + ex);
+            // Provide clearer message on common 404 error
+            if (ex && ex.message && ex.message.indexOf('404') !== -1) {
+                dbgLog('Service worker registration failed: 404 when fetching sw.js (check that sw.js is deployed at the same path as this page)');
+            } else {
+                dbgLog('Service worker registration failed: ' + ex);
+            }
             console.warn('SW register failed', ex);
         }
         // Refresh the displayed SW status
