@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dog bark detector</title>
+
+    <style>
+        body {
+            background: ##F5F7FA;
+            font-family: Verdana, sans-serif;
+            text-align: center;
+        }
+
+        .button-group {
+            display: flex;
+            flex-direction: row;
+            gap: 1em;
+            justify-content: center;
+            margin-bottom: 1em;
+        }
+        
+        @media (max-width: 600px) {
+            .button-group {
+                flex-direction: column;
+                gap: 1em;
+                align-items: center;
+            }
+        }
+
+        .button {
+            padding: 0.2em 1em;
+            font-size: inherit;
+            font-family: Verdana, sans-serif;
+            color: white;
+            line-height: 1.5em;
+            border-radius: 0.4em;
+            font-weight: 400;
+            display: inline-block;
+            cursor: pointer;
+            border: thin solid #1976D2;
+            background: #1976D2;
+            margin: auto;
+            width: auto;
+            box-sizing: border-box;
+        }
+        .button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .container {
+            border-radius: 12px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+            overflow: hidden;
+                border-radius: 12px;
+                box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+                overflow: hidden;
+                text-align: left;
+        }
+        .row {
+            display: flex;
+            align-items: center;
+            padding: 16px;
+            background: #E3E8EE;
+        }
+        .row + .row {
+            border-top: 5px solid #FFFFFF; /* divider line */
+        }
+
+        /*
+        #features {
+            width: 50%;
+            font-size: 18px;
+        }
+
+        #results {
+            font-family: monospace;
+            white-space: pre;
+        }
+            */
+    </style>
+</head>
+<body>
+    <p>Dog bark detection (V1)</p>
+    <div class="button-group">
+        <button id="start-capture" class="button">Start sampling sound</button>
+        <button id="stop-capture" class="button" disabled>Stop sampling sound</button>
+    </div>
+    <p id="sampling-status">Not sampling environment sounds</p>
+    <style>
+       
+
+    </style>
+    <br></br>
+    <div class="container">
+        <div class="row">
+            <div>
+                <p style="font-weight:bold">Detected sound:</p>
+                <span id="classification-result">-</span><br>
+                <span id="classification-confidence"></span>
+            </div>
+        </div>
+        <div class="row">
+            <div>
+                <p style="font-weight:bold">Last detected dog bark:</p>
+                <span id="last-dog-bark">Never</span>
+                <span id="dog-bark-timer"></span>
+            </div>
+        </div>
+    </div>
+    <script src="edge-impulse-standalone.js"></script>
+    <script src="run-impulse.js"></script>
+    <script src="mic-classify.js"></script>
+</body>
+</html>
