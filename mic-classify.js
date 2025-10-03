@@ -88,6 +88,31 @@ function incrementDebugCounter(id) {
     el.textContent = String(Number(el.textContent || '0') + 1);
 }
 
+async function testSWNotification() {
+    dbgLog('testSWNotification clicked');
+    const body = 'Test notification (SW)';
+    try {
+        if ('serviceWorker' in navigator) {
+            const reg = await navigator.serviceWorker.getRegistration();
+            if (reg && reg.showNotification) {
+                reg.showNotification('Test notification', { body, tag: 'test-notif' });
+                dbgLog('showNotification via SW invoked');
+                return;
+            }
+        }
+        if (window.Notification && Notification.permission === 'granted') {
+            new Notification('Test notification', { body });
+            dbgLog('Notification constructor invoked');
+        } else {
+            dbgLog('No SW reg or Notification permission not granted');
+            alert('No SW registration or Notification permission not granted');
+        }
+    } catch (ex) {
+        dbgLog('testSWNotification error: ' + ex);
+        console.warn(ex);
+    }
+}
+
 async function startMicrophoneCapture() {
     // Ensure AudioContext is set to 44100Hz (Impulse sample rate)
     audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 44100 });
@@ -197,6 +222,8 @@ window.addEventListener('DOMContentLoaded', async () => {
     await initClassifier();
     document.getElementById('start-capture').onclick = startMicrophoneCapture;
     document.getElementById('stop-capture').onclick = stopMicrophoneCapture;
+    const btn = document.getElementById('dbg-test-notif');
+    if (btn) btn.onclick = testSWNotification;
     updateLastDogBark();
     document.getElementById('sampling-status').textContent = 'Not sampling environment sounds';
     // Visibility listener for debug panel
