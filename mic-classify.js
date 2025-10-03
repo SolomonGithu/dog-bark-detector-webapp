@@ -113,6 +113,75 @@ async function testSWNotification() {
     }
 }
 
+// --- Push subscription logic (client) ---
+async function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const rawData = atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+}
+
+async function subscribeToPush() {
+    const status = document.getElementById('push-status');
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+        status.textContent = 'Push unsupported';
+        return;
+    }
+    try {
+        const res = await fetch('/vapidPublicKey');
+        const data = await res.json();
+        const publicKey = data.publicKey;
+        const reg = await navigator.serviceWorker.getRegistration();
+        if (!reg) {
+            status.textContent = 'No service worker';
+            return;
+        }
+        const sub = await reg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(publicKey)
+        });
+        await fetch('/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ subscription: sub }) });
+        status.textContent = 'Subscribed';
+        dbgLog('Push subscribed');
+    } catch (ex) {
+        console.warn('subscribeToPush error', ex);
+        status.textContent = 'Subscribe failed';
+        dbgLog('Push subscribe error: ' + ex);
+    }
+}
+
+async function unsubscribeFromPush() {
+    const status = document.getElementById('push-status');
+    try {
+        const reg = await navigator.serviceWorker.getRegistration();
+        if (!reg) { status.textContent = 'No service worker'; return; }
+        const sub = await reg.pushManager.getSubscription();
+        if (!sub) { status.textContent = 'Not subscribed'; return; }
+        await fetch('/unsubscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ subscription: sub }) });
+        await sub.unsubscribe();
+        status.textContent = 'Unsubscribed';
+        dbgLog('Push unsubscribed');
+    } catch (ex) {
+        console.warn('unsubscribeFromPush error', ex);
+        status.textContent = 'Unsubscribe failed';
+    }
+}
+
+async function sendTestPush() {
+    try {
+        const payload = { title: 'Test push', body: 'This is a test push from server' };
+        const res = await fetch('/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ payload }) });
+        const json = await res.json();
+        dbgLog('sendTestPush result: ' + JSON.stringify(json));
+    } catch (ex) {
+        dbgLog('sendTestPush error: ' + ex);
+    }
+}
+
 async function startMicrophoneCapture() {
     // Ensure AudioContext is set to 44100Hz (Impulse sample rate)
     audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 44100 });
@@ -219,11 +288,29 @@ async function processAudioChunk(chunk) {
 }
 
 window.addEventListener('DOMContentLoaded', async () => {
+    // Try to register the service worker early so reg.showNotification can be used
+    if ('serviceWorker' in navigator) {
+        try {
+            const reg = await navigator.serviceWorker.register('/sw.js');
+            dbgLog('Service worker registered at ' + (reg.scope || '/'));
+        } catch (ex) {
+            dbgLog('Service worker registration failed: ' + ex);
+            console.warn('SW register failed', ex);
+        }
+        // Refresh the displayed SW status
+        await updateDebugSWStatus();
+    }
     await initClassifier();
     document.getElementById('start-capture').onclick = startMicrophoneCapture;
     document.getElementById('stop-capture').onclick = stopMicrophoneCapture;
     const btn = document.getElementById('dbg-test-notif');
     if (btn) btn.onclick = testSWNotification;
+    const subBtn = document.getElementById('push-subscribe');
+    if (subBtn) subBtn.onclick = subscribeToPush;
+    const unsubBtn = document.getElementById('push-unsubscribe');
+    if (unsubBtn) unsubBtn.onclick = unsubscribeFromPush;
+    const sendBtn = document.getElementById('push-send');
+    if (sendBtn) sendBtn.onclick = sendTestPush;
     updateLastDogBark();
     document.getElementById('sampling-status').textContent = 'Not sampling environment sounds';
     // Visibility listener for debug panel
